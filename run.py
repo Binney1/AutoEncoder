@@ -17,7 +17,7 @@ TRANSFORM_CIFAR10 = transforms.Compose([
 
 TRANSFORM_MNIST = transforms.Compose([
     transforms.ToTensor(),
-    transforms.Normalize((0.5), (0.5))
+    transforms.Normalize([0.5], [0.5])
 ])
 
 # Settings
@@ -25,9 +25,8 @@ settings = {
     'dataset': 'MNIST',
     'AE': 'ConvAE',
     'transform': TRANSFORM_MNIST,
-    'train_batch_size': 32,
+    'train_batch_size': 128,
     'test_batch_size': 4,
-    'num_workers': 1,
     'lr': 1e-2,
     'epochs': 50,
     'weight_decay':1e-5,
@@ -45,16 +44,10 @@ def to_img(x):
 if __name__ == '__main__':
     model = ConvAE.ConvAutoEncoder()
 
-    dataset = torchvision.datasets.MNIST
+    trainset = torchvision.datasets.MNIST(root='./datasets', download=True, transform=settings['transform'])
 
-    # Load the data
-    trainset = dataset(root='./datasets', train=True, download=True, transform=settings['transform'])
-    testset = dataset(root='./datasets', train=False, download=True, transform=settings['transform'])
+    train_data = utils.DataLoader(trainset, batch_size=settings['train_batch_size'], shuffle=True)
 
-    train_dataloader = utils.DataLoader(trainset, batch_size=settings['train_batch_size'], shuffle=True,
-                                        num_workers=settings['num_workers'])
-    test_dataloader = utils.DataLoader(testset, batch_size=settings['test_batch_size'], shuffle=True,
-                                       num_workers=settings['num_workers'])
     distance = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=settings['lr'], weight_decay=settings['weight_decay'])
 
@@ -62,13 +55,14 @@ if __name__ == '__main__':
         model.cuda()
 
     # Start training
+    print('Start training!')
     for epoch in range(settings['epochs']):
         # Auto adjust the learning rate
-        if epoch in [settings['epoches'] * 0.25, settings['epochs']]:
+        if epoch in [settings['epochs'] * 0.25, settings['epochs'] * 0.5]:
             for param_group in optimizer.param_groups:
                 param_group['lr'] *= 0.1
 
-        for img, _ in train_dataloader:
+        for img, _ in train_data:
             img = Variable(img.cuda())
 
             # forward

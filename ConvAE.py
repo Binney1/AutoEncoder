@@ -28,5 +28,5 @@ class ConvAutoEncoder(nn.Module):
 
     def forward(self, x):
         encode = self.encoder(x)
-        decode = self.decoder(x)
+        decode = self.decoder(encode)
         return encode, decode
