@@ -16,3 +16,17 @@ class ConvAutoEncoder(nn.Module):
             nn.ReLU(True),
             nn.MaxPool2d(2, stride=1)
         )
+
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(8, 16, 3, stride=2),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(16, 8, 5, stride=3, padding=1),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(8, 1, 2, stride=2, padding=1),
+            nn.Tanh()
+        )
+
+    def forward(self, x):
+        encode = self.encoder(x)
+        decode = self.decoder(x)
+        return encode, decode

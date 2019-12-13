@@ -1,8 +1,13 @@
 import torch
+import torch.nn as nn
+from torch.autograd import Variable
 import torchvision
 import torchvision.transforms as transforms
 import torch.utils.data as utils
+from torchvision.utils import save_image
 import ConvAE
+import matplotlib.pyplot as plt
+import os
 
 # Transforms
 TRANSFORM_CIFAR10 = transforms.Compose([
@@ -17,19 +22,70 @@ TRANSFORM_MNIST = transforms.Compose([
 
 # Settings
 settings = {
+    'dataset': 'MNIST',
+    'AE': 'ConvAE',
     'transform': TRANSFORM_MNIST,
     'train_batch_size': 32,
     'test_batch_size': 4,
     'num_workers': 1,
+    'lr': 1e-2,
+    'epochs': 50,
+    'weight_decay':1e-5,
 }
 
-dataset =  torchvision.datasets.MNIST
+def to_img(x):
+    x = (x + 1.) * 0.5
+    x = x.clamp(0, 1)
+    x = x.view(x.size(0), 1, 28, 28)
+    return x
 
-# Load the data
-trainset = dataset(root='./datasets', train=True, download=True, transform=settings['transform'])
-testset = dataset(root='./datasets', train=False, download=True, transform=settings['transform'])
-
-train_dataloader = utils.DataLoader(trainset, batch_size=settings['train_batch_size'], shuffle=True, num_workers=settings['num_workers'])
-test_dataloader = utils.DataLoader(testset, batch_size=settings['test_batch_size'], shuffle=True, num_workers=settings['num_workers'])
 
 # classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+
+if __name__ == '__main__':
+    model = ConvAE.ConvAutoEncoder()
+
+    dataset = torchvision.datasets.MNIST
+
+    # Load the data
+    trainset = dataset(root='./datasets', train=True, download=True, transform=settings['transform'])
+    testset = dataset(root='./datasets', train=False, download=True, transform=settings['transform'])
+
+    train_dataloader = utils.DataLoader(trainset, batch_size=settings['train_batch_size'], shuffle=True,
+                                        num_workers=settings['num_workers'])
+    test_dataloader = utils.DataLoader(testset, batch_size=settings['test_batch_size'], shuffle=True,
+                                       num_workers=settings['num_workers'])
+    distance = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=settings['lr'], weight_decay=settings['weight_decay'])
+
+    if torch.cuda.is_available():
+        model.cuda()
+
+    # Start training
+    for epoch in range(settings['epochs']):
+        # Auto adjust the learning rate
+        if epoch in [settings['epoches'] * 0.25, settings['epochs']]:
+            for param_group in optimizer.param_groups:
+                param_group['lr'] *= 0.1
+
+        for img, _ in train_dataloader:
+            img = Variable(img.cuda())
+
+            # forward
+            _, output = model(img)
+            loss = distance(output, img)
+
+            # backward
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        print('epoch[{}/{}], loss:{:.4f}'.format(epoch+1, settings['epochs'], loss.data.float()))
+
+        if (epoch + 1) % 5 == 0:
+            pic = to_img(output.cpu().data)
+            if not os.path.exists('./encoder_{}'.format(settings['AE'])):
+                os.mkdir('./encoder_{}'.format(settings['AE']))
+            save_image(pic, './encoder_{}/image_{}.png'.format(settings['AE'], epoch + 1))
+
+    torch.save(model, './autoencoder_{}'.format(settings['AE']))
