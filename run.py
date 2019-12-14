@@ -6,7 +6,6 @@ import torchvision.transforms as transforms
 import torch.utils.data as utils
 from torchvision.utils import save_image
 import ConvAE
-import matplotlib.pyplot as plt
 import os
 
 # Transforms
@@ -37,9 +36,6 @@ def to_img(x):
     x = x.clamp(0, 1)
     x = x.view(x.size(0), 1, 28, 28)
     return x
-
-
-# classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
 if __name__ == '__main__':
     model = ConvAE.ConvAutoEncoder()
